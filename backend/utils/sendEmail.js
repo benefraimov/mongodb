@@ -41,6 +41,4 @@ const sendEmail = async ({ reciepent, name, subject, text }) => {
     }
 }
 
-module.exports = {
-    sendEmail
-};
+exports.sendEmail = sendEmail;

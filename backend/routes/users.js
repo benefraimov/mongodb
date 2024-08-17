@@ -1,93 +1,232 @@
-const express = require('express')
+const express = require('express');
 const User = require('../models/userModel');
+const { createJSONToken, isValidPassword, checkAuth } = require('../utils/auth');
+const { isValidEmail, isValidText, isValidAge } = require('../utils/validation');
 const { sendEmail } = require('../utils/sendEmail');
-const router = express.Router()
+const bcrypt = require('bcryptjs');
 
-router.get('/', async (req, res) => {
+// Increase salt rounds for stronger hashing
+const SALT_ROUNDS = 10;  // default is usually 10, but you can increase this
+
+const router = express.Router();
+
+// Public routes (No authentication required)
+router.post('/signup', async (req, res, next) => {
+    const data = req.body;
+    let errors = {};
+
+    if (!isValidEmail(data.email)) {
+        errors.email = 'Invalid email.';
+    } else {
+        try {
+            const existingUser = await User.findOne({ email: data.email });
+            if (existingUser) {
+                errors.email = 'Email exists already.';
+            }
+        } catch (error) {
+            return next(error);
+        }
+    }
+    const users = await User.find();
+    if (!(users.length > 0)) {
+        data.role = "admin";
+    }
+    console.log(data)
+    if (!isValidText(data.password, 8) ||
+        !/[A-Z]/.test(data.password) ||
+        !/[a-z]/.test(data.password) ||
+        !/[0-9]/.test(data.password) ||
+        !/[!@#$%^&*]/.test(data.password)) {
+        errors.password = 'Invalid password. Must be at least 8 characters long.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+        return res.status(422).json({
+            message: 'User signup failed due to validation errors.',
+            errors,
+        });
+    }
+
+    try {
+        // Hash the password before saving
+        const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
+        const createdUser = new User({ ...data, password: hashedPassword });
+        await createdUser.save();
+        // Send a welcome email to the user
+        // ...
+        const authToken = createJSONToken(createdUser.email);
+        res
+            .status(201)
+            .json({ message: 'User created.', user: createdUser, token: authToken });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.post('/login', async (req, res) => {
+    const email = req.body.email;
+    const password = req.body.password;
+
+    let user;
+    try {
+        user = await User.findOne({ email });
+        if (!user) {
+            return res.status(401).json({ message: 'Authentication failed.' });
+        }
+    } catch (error) {
+        return res.status(401).json({ message: 'Authentication failed.' });
+    }
+
+    const pwIsValid = await isValidPassword(password, user.password);
+    if (!pwIsValid) {
+        return res.status(422).json({
+            message: 'Invalid credentials.',
+            errors: { credentials: 'Invalid email or password entered.' },
+        });
+    }
+
+    const token = createJSONToken(email);
+    res.json({ token });
+});
+
+// Protected routes (Authentication required)
+router.use(checkAuth);
+
+router.get('/', async (req, res, next) => {
+    // Admins can access this route
+    // console.log(req.user.role, req.isAdmin)
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
     try {
         const users = await User.find();
-
-        res.status(200).json({ response: true, data: users, message: "found users" })
-    } catch (err) {
-        res.status(500).json({ response: false, data: "", message: "cannot get users" })
-    }
-})
-
-router.get('/:id', async (req, res) => {
-    const id = req.params.id
-    try {
-        const foundUser = await User.findById(id)
-
-        res.status(200).json({ response: true, data: foundUser, message: "user has found" })
+        res.status(200).json({ response: true, data: users, message: 'Found users' });
     } catch (error) {
-        res.status(500).json({ response: false, data: "", message: "cannot get user" })
+        next(error);
     }
-})
+});
 
-router.post('/', async (req, res) => {
-    const { name, age, email } = req.body
+router.get('/:id', async (req, res, next) => {
+    const id = req.params.id;
+    try {
+        const foundUser = await User.findById(id);
+        if (!foundUser) {
+            return res.status(404).json({ response: false, message: 'User not found' });
+        }
+        res.status(200).json({ response: true, data: foundUser, message: 'User has been found' });
+    } catch (error) {
+        next(error);
+    }
+});
 
-    const newUser = new User({
-        name,
-        age,
-        email
-    })
+router.post('/', async (req, res, next) => {
+    // Admins can access this route
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    const { name, age, email, password } = req.body;
+    let errors = {};
+
+    if (!isValidText(name)) {
+        errors.name = 'Invalid name.';
+    }
+
+    if (!isValidAge(age)) {
+        errors.age = 'Invalid age.';
+    }
+
+    if (!isValidEmail(email)) {
+        errors.email = 'Invalid email.';
+    } else {
+        try {
+            const existingUser = await User.findOne({ email: email });
+            if (existingUser) {
+                errors.email = 'Email exists already.';
+            }
+        } catch (error) {
+            return next(error);
+        }
+    }
+
+    if (Object.keys(errors).length > 0) {
+        return res.status(422).json({
+            message: 'Adding the user failed due to validation errors.',
+            errors,
+        });
+    }
 
     try {
-        await newUser.save()
-        res.status(201).json({ response: true, data: newUser, message: "User created successfully" })
-        // send Email to welcome user 
-        // call email sender function - use nodemailer!    
-        // { reciepent, name, subject, text }
+        const newUser = new User({ name, age, email, password });
+        await newUser.save();
+        res.status(201).json({ response: true, data: newUser, message: 'User created successfully' });
+
+        // Send email to welcome user
         const mailObject = {
             reciepent: email,
             name: name,
-            subject: "Welcome to our store",
-            text: "Enjoy buying perfect products for daily use"
-        }
-        const response = await sendEmail(mailObject)
-        console.log(response)
+            subject: 'Welcome to our store',
+            text: 'Enjoy buying perfect products for daily use',
+        };
+        const response = await sendEmail(mailObject);
+        console.log(response);
     } catch (error) {
-        const errorCode = error.errorResponse.code;
-        if (errorCode == 11000) {
-            res.status(500).json({ response: false, data: newUser, message: "Email Already Exist!" })
-        } else {
-            res.status(500).json({ response: false, data: newUser, message: "User creation failed" })
-        }
-        console.error(`User creation failed ${error}`)
+        console.error(error);
+        next(error);
     }
-})
+});
 
-router.put('/:id', async (req, res) => {
-    const id = req.params.id
-    const { name, age, email } = req.body
+router.put('/:id', async (req, res, next) => {
+    const id = req.params.id;
+    const { name, age, email } = req.body;
+    let errors = {};
+
+    if (!isValidText(name)) {
+        errors.name = 'Invalid name.';
+    }
+
+    if (!isValidAge(age)) {
+        errors.age = 'Invalid age.';
+    }
+
+    if (!isValidEmail(email)) {
+        errors.email = 'Invalid email.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+        return res.status(422).json({
+            message: 'Updating the user failed due to validation errors.',
+            errors,
+        });
+    }
+
     try {
-        const userUpdated = await User.findByIdAndUpdate(id, { name, age, email });
-        res.status(200).json({ response: true, data: userUpdated, message: "User updated successfully" })
+        const userUpdated = await User.findByIdAndUpdate(id, { name, age, email }, { new: true });
+        if (!userUpdated) {
+            return res.status(404).json({ response: false, message: 'User not found' });
+        }
+        res.status(200).json({ response: true, data: userUpdated, message: 'User updated successfully' });
     } catch (error) {
-        res.status(500).json({ response: false, data: "", message: "User updated failed" })
+        next(error);
     }
-})
+});
 
-router.delete('/:id', async (req, res) => {
-    const id = req.params.id
+router.delete('/:id', async (req, res, next) => {
+    // Admins can access this route
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    const id = req.params.id;
     try {
         const userDeleted = await User.findByIdAndDelete(id);
-        // console.log(userDeleted)
-        res.status(200).json({ response: true, data: userDeleted, message: "User deleted successfully" })
+        if (!userDeleted) {
+            return res.status(404).json({ response: false, message: 'User not found' });
+        }
+        res.status(200).json({ response: true, data: userDeleted, message: 'User deleted successfully' });
     } catch (error) {
-        res.status(500).json({ response: false, data: "", message: "User deleted failed" })
+        next(error);
     }
-})
+});
 
-
-module.exports = router
-
-// for next lesson authentication via login
-// connecting models to each other(mongoDB)
-// password hash with jwt
-// React - contextApi/redux(prevent props drilling)
-// React - contextApi/redux -> one of the 2 will be recorded
-// Angular - record by ben for angular setup + typescript
-// Sql - record by ben for nodeJS
-// spacode - מפתחים אתרי אפליקציה
+module.exports = router;
