@@ -8,6 +8,9 @@ const router = express.Router();
 router.get('/', async (req, res, next) => {
     try {
         const products = await Product.find();
+        // setTimeout(() => {
+        // }, 1500);
+        // console.log(products)
         res.status(200).json({ response: true, data: products, message: 'Found products' });
     } catch (error) {
         next(error);

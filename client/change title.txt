@@ -1,0 +1,36 @@
+1. Install react-helmet-async:
+
+2. npm install react-helmet-async
+
+3. Set Up HelmetProvider in Your App:
+Wrap your app in the HelmetProvider component, typically in your index.js or App.js:
+
+import React from 'react';
+import ReactDOM from 'react-dom';
+import { HelmetProvider } from 'react-helmet-async';
+import App from './App';
+
+ReactDOM.render(
+  <HelmetProvider>
+    <App />
+  </HelmetProvider>,
+  document.getElementById('root')
+);
+
+4. Use Helmet to Set the Title in Your Components:
+
+import React from 'react';
+import { Helmet } from 'react-helmet-async';
+
+function HomePage() {
+  return (
+    <div>
+      <Helmet>
+        <title>Home Page</title>
+      </Helmet>
+      <h1>Home Page</h1>
+    </div>
+  );
+}
+
+export default HomePage;

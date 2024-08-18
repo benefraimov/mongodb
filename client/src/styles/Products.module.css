@@ -1,0 +1,18 @@
+.container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+
+  a {
+    color: inherit; /* Inherits the color of the parent element */
+    text-decoration: none; /* Removes the underline */
+    cursor: pointer; /* Ensures the cursor still changes to a pointer */
+  }
+
+  /* Optional: You can add more styles for hover, focus, etc. */
+  a:hover,
+  a:focus {
+    color: rgb(123, 200, 126);
+    text-decoration: none;
+  }
+}
