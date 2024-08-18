@@ -52,7 +52,7 @@ function AuthForm() {
 
 export default AuthForm;
 
-export async function action({ request, params }) {
+export async function action({ request }) {
   // console.log("1");
   const searchParams = new URL(request.url).searchParams;
   // console.log(searchParams);
@@ -93,6 +93,5 @@ export async function action({ request, params }) {
   expiration.setHours(expiration.getHours() + 1);
   localStorage.setItem("expiration", expiration.toISOString());
 
-  // Manage token
   return redirect("/");
 }

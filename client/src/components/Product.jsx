@@ -8,7 +8,7 @@ import {
 } from "react-router-dom";
 
 const Product = ({ product }) => {
-  const token = useRouteLoaderData();
+  const token = useRouteLoaderData("root");
   const submit = useSubmit();
   const navigate = useNavigate();
   const [showButton, setShowButton] = useState(false);

@@ -1,9 +1,13 @@
 // web framework for Node.js
 const express = require('express');
 const cors = require('cors');
+// mongo connection
 const mongoConnect = require('./authDB');
 const PORT = process.env.PORT;
 
+// requring express-rate-limit to limit
+// ip access to our backend
+// must be installed: npm install express-rate-limit 
 const rateLimit = require('express-rate-limit');
 
 // Define a rate limit rule
@@ -26,7 +30,7 @@ const app = express();
 app.use(limiter);
 
 // Alternatively, apply it to specific routes
-// app.use('/api/', limiter);
+// app.use('/users', limiter);
 
 // For getting jsons into our server - JSON Payload
 app.use(express.json());

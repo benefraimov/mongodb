@@ -1,5 +1,6 @@
 // Checks if a text value is non-empty and meets a
 // minimum length requirement.
+//hello check//
 function isValidText(value, minLength = 1) {
     return value && value.trim().length >= minLength;
 }

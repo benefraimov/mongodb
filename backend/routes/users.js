@@ -12,10 +12,13 @@ const router = express.Router();
 
 // Public routes (No authentication required)
 router.post('/signup', async (req, res, next) => {
+    // get data Object from body 
     const data = req.body;
     let errors = {};
 
+    // if false value(email isn't valid) get to the condition
     if (!isValidEmail(data.email)) {
+        // add new property to errors object with the error message 
         errors.email = 'Invalid email.';
     } else {
         try {
@@ -27,11 +30,15 @@ router.post('/signup', async (req, res, next) => {
             return next(error);
         }
     }
+    // if there is no user exist the first user
+    // will get an admin permission
     const users = await User.find();
     if (!(users.length > 0)) {
         data.role = "admin";
     }
     console.log(data)
+
+    // regex test -> 
     if (!isValidText(data.password, 8) ||
         !/[A-Z]/.test(data.password) ||
         !/[a-z]/.test(data.password) ||
@@ -40,6 +47,7 @@ router.post('/signup', async (req, res, next) => {
         errors.password = 'Invalid password. Must be at least 8 characters long.';
     }
 
+    // convert the object errors to an array to check it's length 
     if (Object.keys(errors).length > 0) {
         return res.status(422).json({
             message: 'User signup failed due to validation errors.',
@@ -49,6 +57,7 @@ router.post('/signup', async (req, res, next) => {
 
     try {
         // Hash the password before saving
+        // must install bcrypt: npm install bcrypt 2^10 1024
         const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
         const createdUser = new User({ ...data, password: hashedPassword });
         await createdUser.save();
@@ -157,7 +166,8 @@ router.post('/', async (req, res, next) => {
     }
 
     try {
-        const newUser = new User({ name, age, email, password });
+        const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+        const newUser = new User({ name, age, email, password: hashedPassword });
         await newUser.save();
         res.status(201).json({ response: true, data: newUser, message: 'User created successfully' });
 

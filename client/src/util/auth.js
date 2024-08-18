@@ -1,5 +1,6 @@
 import { redirect } from "react-router-dom";
 
+// Returnes Negative or positive value 
 export function getTokenDuration() {
     const storedExpirationDate = localStorage.getItem('expiration');
     const expirationDate = new Date(storedExpirationDate);

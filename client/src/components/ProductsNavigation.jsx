@@ -3,7 +3,7 @@ import { NavLink, useRouteLoaderData } from "react-router-dom";
 import classes from "./ProductsNavigation.module.css";
 
 const ProductsNavigation = () => {
-  const token = useRouteLoaderData();
+  const token = useRouteLoaderData("root");
   return (
     <header className={classes.header}>
       <nav>
